@@ -18,8 +18,8 @@ Note: This seasonal forecast module is currently under development and not yet p
 | Access Method           | Description                                                  |
 |--------------------------|--------------------------------------------------------------|
 | View as PDF            | View the main script in a printable PDF format               |
-| View Python Script     | Open the `.py` source code directly in the GitHub repository |
-| CLIMADA Repository     | Link to the official CLIMADA or CLIMADA Petals repository    |
+| View Python Script(     | Open the `.py` source code directly in the GitHub repository |
+| [CLIMADA Repository](https://github.com/CLIMADA-project/climada_petals/blob/feature/copernicus_forecast/climada_petals/hazard/copernicus_interface/create_seasonal_forecast_hazard.py)     | Link to the official CLIMADA or CLIMADA Petals repository    |
 
 
 
