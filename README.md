@@ -13,11 +13,11 @@ The core class `SeasonalForecast` manages the entire data pipeline — from raw 
 
 Note: This seasonal forecast module is currently under development and not yet part of the official CLIMADA Petals release. It is scheduled for integration in the mid 2025 CLIMADA release. 
 
-👉 Here you can acces to the the code there thre format avialble:
+👉 You can access the **code** in the following formats:
 
 | Access Method           | Description                                                  |
 |--------------------------|--------------------------------------------------------------|
-| View as PDF            | View the main script in a printable PDF format               |
+| [View as PDF](https://github.com/DahyannAraya/climada_seasonal_forecast_sr/blob/main/create_seasonal_forecast_hazard.py)            | View the main script in a printable PDF format               |
 | [View Python Script](https://github.com/DahyannAraya/climada_seasonal_forecast_sr/blob/main/create_seasonal_forecast_hazard.py)     | Open the `.py` source code directly in the GitHub repository |
 | [CLIMADA Repository](https://github.com/CLIMADA-project/climada_petals/blob/feature/copernicus_forecast/climada_petals/hazard/copernicus_interface/create_seasonal_forecast_hazard.py)     | Link python script on CLIMADA Petals repository    |
 
