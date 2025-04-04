@@ -4,31 +4,26 @@
 
 <img src="images/repo_qr.png" alt="Repository QR Code" width="150"/>
 
-This repository contains two **Jupyter Notebooks** that showcases the functionalities of the new **seasonal forecast module** of [CLIMADA](https://climada.ethz.ch/). The module facilitates the management of **seasonal forecast data** from the [Copernicus Climate Data Store](https://cds.climate.copernicus.eu) (CDS) as part of the [U-CLIMADAPT project](https://www.copernicus-user-uptake.eu/user-uptake/details/responding-to-the-impact-of-climate-change-u-climadapt-488). 
-This module provides comprehensive tools for downloading, processing, and computing climate indices, as well as generating hazard objects based on seasonal forecast datasets, particularly [Seasonal forecast daily and subdaily data on single levels](https://cds.climate.copernicus.eu/datasets/seasonal-original-single-levels?tab=overview). 
-Designed for seamless integration with the [CLIMADA](https://climada.ethz.ch/) (CLIMate ADAptation) platform, this module supports climate risk assessment and facilitates the development of effective adaptation strategies.
+
+This repository contains the core **single Python script** of the new **seasonal forecast module** of [CLIMADA](https://climada.ethz.ch/), developed as part of the [U-CLIMADAPT project](https://www.copernicus-user-uptake.eu/user-uptake/details/responding-to-the-impact-of-climate-change-u-climadapt-488). The module facilitates the management of **seasonal forecast data** from the [Copernicus Climate Data Store](https://cds.climate.copernicus.eu), particularly the [Seasonal forecast daily and subdaily data on single levels](https://cds.climate.copernicus.eu/datasets/seasonal-original-single-levels?tab=overview).
+
+This implementation provides a modular pipeline for downloading, processing, and analyzing seasonal forecast data, computing climate indices (e.g., Heatwave Days, Tropical Nights), and generating CLIMADA-compatible `Hazard` objects for impact modeling. It is designed for seamless integration with the CLIMADA Petals extension and supports impact-base forescasting.
+
+The core class `SeasonalForecast` manages the entire data pipeline — from raw data download to hazard creation — and includes utilities for file checking, plotting forecast skill metrics, and structured output path generation according to CLIMADA conventions.
+
+Note: This seasonal forecast module is currently under development and not yet part of the official CLIMADA Petals release. It is scheduled for integration in the 2025 CLIMADA release. The code provided here represents early development work within the U-CLIMADAPT project and is available through the CLIMADA open-source development codebase.
+
+👉 Here is the code, you acces to they code via :
+
+| Access Method           | Description                                                  |
+|--------------------------|--------------------------------------------------------------|
+| View as PDF            | View the main script in a printable PDF format               |
+| View Python Script     | Open the `.py` source code directly in the GitHub repository |
+| CLIMADA Repository     | Link to the official CLIMADA or CLIMADA Petals repository    |
 
 
-## **Features**
-- 📥 **Download** seasonal forecast data from CDS.
-- 🔄 **Process** raw seasonal forecast datasets.
-- 📊 **Compute climate indices** for analysis.
-- 🌍 **Generate hazard objects** for climate risk assessment.
-- 📈 **Impact calculation** using CLIMADA’s tools to:
-  - Estimate population affected by heat index.
-  - Map spatial impact patterns.
-  - Analyze forecast impacts across ensemble members.
-- 🛠️ **Integration with [CLIMADA](https://climada.ethz.ch/)** (CLIMate ADAptation) for climate impact modeling.
 
-## **Requirements**
-Before running the notebook locally, ensure you have the following dependencies installed:
-
-- `climada`
-- `climada_petals`
-- `cdsapi` [Install and register cdsapi via this link](https://cds.climate.copernicus.eu/how-to-api#install-the-cds-api-client)
-- `numpy`
-- `pandas`
-- `matplotlib`
+# **Extra Material** 
 
 ## **Usage**
 
