@@ -12,8 +12,8 @@ Note: This seasonal forecast module is currently under development and not yet p
 
 | Access Method           | Description                                                  |
 |--------------------------|--------------------------------------------------------------|
-| [Open PDF directly](https://github.com/DahyannAraya/climada_seasonal_forecast_sr/raw/main/create_seasonal_forecast_hazard.pdf)            | View the main script in a printable PDF format               |
 | [View Python Script](https://github.com/DahyannAraya/climada_seasonal_forecast_sr/blob/main/create_seasonal_forecast_hazard.py)     | Open the `.py` source code directly in the GitHub repository |
+| [Download PDF directly](https://github.com/DahyannAraya/climada_seasonal_forecast_sr/raw/main/create_seasonal_forecast_hazard.pdf)            | Download the main script in a printable PDF format               |
 | [CLIMADA Repository](https://github.com/CLIMADA-project/climada_petals/blob/feature/copernicus_forecast/climada_petals/hazard/copernicus_interface/create_seasonal_forecast_hazard.py)     | Link python script on CLIMADA Petals repository    |
 
 
