@@ -1,6 +1,6 @@
 <img src="images/Logos.png" alt="Project Logos" width="70%"/>
 
-# **Copernicus Seasonal Forecast Module** 
+# **Code Sample - Copernicus Seasonal Forecast Module** 
 
 This repository contains the **core implementation script** of the **seasonal forecast module** of [CLIMADA](https://climada.ethz.ch/), developed as part of the [U-CLIMADAPT project](https://www.copernicus-user-uptake.eu/user-uptake/details/responding-to-the-impact-of-climate-change-u-climadapt-488). The module facilitates the management of **seasonal forecast data** from the [Copernicus Climate Data Store](https://cds.climate.copernicus.eu), particularly the [Seasonal forecast daily and subdaily data on single levels](https://cds.climate.copernicus.eu/datasets/seasonal-original-single-levels?tab=overview).
 
