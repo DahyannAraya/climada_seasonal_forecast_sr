@@ -6,7 +6,7 @@ This repository contains the **core implementation script** of the **seasonal fo
 
 I think this code is a strong example of my recent work. It presents the core class `SeasonalForecast`, which manages the entire data pipeline — from downloading, processing, and analyzing seasonal forecast data to computing climate indices (e.g., Heatwave Days, Tropical Nights) and generating CLIMADA-compatible `Hazard` objects for impact modeling. The module is designed for seamless integration with the CLIMADA Petals extension and supports impact-based forecasting.
 
-Note: This seasonal forecast module is currently under development and not yet part of the official CLIMADA Petals release. It is scheduled for integration in the mid 2025 CLIMADA release. 
+**Note**: This seasonal forecast module is currently under development and not yet part of the official CLIMADA Petals release. It is scheduled for integration in the mid 2025 CLIMADA release. 
 
 👉 You can access the **code** in the following formats:
 
@@ -19,6 +19,6 @@ Note: This seasonal forecast module is currently under development and not yet p
 
 
 # **Extra Material** 
-For and demostration of its aplication visit
+For a demonstration of the module application, visit:
 
 <img src="images/repo_qr.png" alt="Repository QR Code" width="150"/>
