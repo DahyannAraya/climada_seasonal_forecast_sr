@@ -1,5 +1,44 @@
-import sys
-print(sys.executable)
+"""
+This file is part of CLIMADA.
+
+Copyright (C) 2017 ETH Zurich, CLIMADA contributors listed in AUTHORS.
+
+CLIMADA is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free
+Software Foundation, version 3.
+
+CLIMADA is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with CLIMADA. If not, see <https://www.gnu.org/licenses/>.
+
+---
+Core interface for managing seasonal climate forecasts in CLIMADA.
+
+This module provides the SeasonalForecast class, which enables:
+- Downloading Copernicus seasonal forecast data for selected years and months.
+- Processing raw GRIB or NetCDF data into standardized daily format.
+- Computing user-defined climate indices (e.g., Heatwaves, Tropical Nights, Tmax).
+- Converting the calculated indices into CLIMADA-compatible Hazard objects.
+- Organizing outputs by forecast system, initialization time, and spatial domain.
+
+The interface integrates several submodules under copernicus_interface:
+- create_seasonal_forecast_hazard.py: implements the core SeasonalForecast class 
+  that coordinates the entire workflow.
+- downloader.py: handles forecast data retrieval from the CDS API.
+- index_definitions.py: climate index definitions and variable handling.
+- heat_index.py: calculate different thermal indices.
+- seasonal_statistics.py: provides statistical postprocessing and index calculations.
+- path_utils.py: standardizes and validates file and folder structures.
+- time_utils.py: computes lead times and handles month name conversions.
+- forecast_skill.py: manages access and plotting of seasonal forecast skill scores from Zenodo.
+
+All inputs and outputs are consistently managed through a pipeline structure that ensures
+modularity, traceability, and ease of integration into CLIMADA workflows.
+
+"""
 import calendar
 import logging
 from datetime import date
@@ -21,6 +60,13 @@ from climada_petals.hazard.copernicus_interface.index_definitions import (
     get_short_name_from_variable,
 )
 import climada_petals.hazard.copernicus_interface.seasonal_statistics as seasonal_statistics
+from climada_petals.hazard.copernicus_interface.time_utils import (
+    month_name_to_number,
+    calculate_leadtimes,
+)
+from climada_petals.hazard.copernicus_interface.path_utils import (
+check_existing_files, get_file_path
+)
 
 
 # set path to store data
@@ -112,104 +158,9 @@ class SeasonalForecast:
             get_short_name_from_variable(var) for var in self.variables
         ]
 
-    def check_existing_files(
-        self,
-        *,
-        index_metric: str,
-        year: int,
-        initiation_month: str,
-        valid_period: List[str],
-        download_format="grib",
-        print_flag=False,
-    ):
-        """
-        Check whether the forecast data files for the specified parameters exist.
 
-        This function checks the existence of the downloaded raw data, processed data,
-        calculated index files, and hazard files for the given forecast configuration.
-
-        Parameters
-        ----------
-        index_metric : str
-            Climate index to calculate (e.g., 'HW', 'TR', 'Tmax').
-        year : int
-            Year of the forecast initiation.
-        initiation_month : str
-            Initiation month of the forecast (e.g., 'March', 'April').
-        valid_period : list of str
-            List with start and end month of the valid forecast period, e.g., ['June', 'August'].
-        download_format : str, optional
-            Format of the downloaded data ('grib' or 'netcdf'). Default is 'grib'.
-        print_flag : bool, optional
-            If True, prints information about file availability. Default is False.
-
-        Returns
-        -------
-        str
-            Description of which files exist and their locations.
-
-        Raises
-        ------
-        ValueError
-            If valid_period does not contain exactly two months.
-
-        Notes
-        -----
-        The function checks for the following file types:
-        - Downloaded raw data
-        - Processed NetCDF data
-        - Calculated index NetCDF files (daily, monthly, stats)
-        - Hazard HDF5 file
-
-        The file locations are constructed based on the provided parameters and the
-        file structure defined in `get_file_path`.
-        """
-        initiation_month_str = f"{month_name_to_number(initiation_month):02d}"
-        valid_period_str = "_".join(
-            [f"{month_name_to_number(month):02d}" for month in valid_period]
-        )
-
-        (
-            downloaded_data_path,
-            processed_data_path,
-            index_data_paths,
-            hazard_data_path,
-        ) = [
-            self.get_file_path(
-                self.data_out,
-                self.originating_centre,
-                year,
-                initiation_month_str,
-                valid_period_str,
-                data_type,
-                index_metric,
-                self.bounds_str,
-                self.system,
-                data_format=download_format,
-            )
-            for data_type in ["downloaded_data", "processed_data", "indices", "hazard"]
-        ]
-
-        if not downloaded_data_path.exists():
-            response = "No downloaded data found for given time periods.\n"
-        else:
-            response = f"Downloaded data exist at: {downloaded_data_path}\n"
-        if not processed_data_path.exists():
-            response += "No processed data found for given time periods.\n"
-        else:
-            response += f"Processed data exist at: {processed_data_path}\n"
-        if not any([path.exists() for path in index_data_paths.values()]):
-            response += "No index data found for given time periods\n."
-        else:
-            response += f"Index data exist at: {index_data_paths}\n"
-        if not hazard_data_path.exists():
-            response += "No hazard data found for given time periods."
-        else:
-            response += f"Hazard data exist at: {hazard_data_path}"
-        if print_flag:
-            print(response)
-        return response
-
+    ##########  Index Metadata Utilities  ##########
+        
     def explain_index(self, index_metric=None, print_flag=False):
         """
         Retrieve and display information about a specific climate index.
@@ -238,7 +189,7 @@ class SeasonalForecast:
         index_metric = index_metric or self.index_metric
         response = (
             f"Explanation for {index_metric}: "
-            f"{IndexSpecEnum.get_info(index_metric).explanation}\n"
+            f"{IndexSpecEnum.get_info(index_metric).explanation} "
         )
         response += (
             "Required variables: "
@@ -247,97 +198,10 @@ class SeasonalForecast:
         if print_flag:
             print(response)
         return response
+    
 
-    @staticmethod
-    def get_file_path(
-        base_dir,
-        originating_centre,
-        year,
-        initiation_month_str,
-        valid_period_str,
-        data_type,
-        index_metric,
-        bounds_str,
-        system,
-        data_format="grib",
-    ):
-        """Provide file paths for forecast pipeline. For the path tree structure,
-        see Notes.
-
-        Parameters
-        ----------
-        base_dir : _type_
-            Base directory where copernicus data and files should be stored. In the pipeline, if
-            not specified differently, CONFIG.hazard.copernicus.seasonal_forecasts.dir() is used.
-        originating_centre : _type_
-            Data source (e.g., "dwd").
-        year : int or str
-            Initiation year.
-        initiation_month_str : str
-            Initiation month (e.g., '02' or '11').
-        valid_period_str : str
-            Valid period (e.g., '04_06' or '07_07').
-        data_type : str
-            Type of the data content. Must be in
-            ['downloaded_data', 'processed_data', 'indices', 'hazard'].
-        index_metric : str
-            Climate index to calculate (e.g., 'HW', 'TR', 'Tmax').
-        bounds_str : str
-            Spatial bounds as a str, e.g., 'W4_S44_E11_N48'.
-        system : _type_
-            Model configuration (e.g., "21").
-        data_format : str, optional
-            Data format ('grib' or 'netcdf').
-
-        Returns
-        -------
-        pathlib.Path
-            Path based on provided parameters.
-
-        Notes
-        -----
-        The file path will have following structure
-        {base_dir}/{originating_centre}/sys{system}/{year}/
-        init{initiation_month_str}/valid{valid_period_str}/
-        Depending on the data_type, further subdirectories are created. The parameters
-        index_metric and bounds_str are included in the file name.
-
-        Raises
-        ------
-        ValueError
-            If unknown data_type is provided.
-        """
-        if data_type == "downloaded_data":
-            data_type += f"/{data_format}"
-        elif data_type == "hazard":
-            data_type += f"/{index_metric}"
-            data_format = "hdf5"
-        elif data_type == "indices":
-            data_type += f"/{index_metric}"
-            data_format = "nc"
-        elif data_type == "processed_data":
-            data_format = "nc"
-        else:
-            raise ValueError(
-                f"Unknown data type {data_type}. Must be in "
-                "['downloaded_data', 'processed_data', 'indices', 'hazard']"
-            )
-
-        # prepare parent directory
-        sub_dir = (
-            f"{base_dir}/{originating_centre}/sys{system}/{year}"
-            f"/init{initiation_month_str}/valid{valid_period_str}/{data_type}"
-        )
-
-        if data_type.startswith("indices"):
-            return {
-                timeframe: Path(
-                    f"{sub_dir}/{index_metric}_{bounds_str}_{timeframe}.{data_format}"
-                )
-                for timeframe in ["daily", "monthly", "stats"]
-            }
-        return Path(f"{sub_dir}/{index_metric}_{bounds_str}.{data_format}")
-
+    ##########  Path Utilities  ##########
+        
     def get_pipeline_path(self, year, initiation_month_str, data_type):
         """
         Provide (and possibly create) file paths for forecast pipeline.
@@ -368,8 +232,7 @@ class SeasonalForecast:
         {base_dir}/{originating_centre}/sys{system}/{year}/init{init_month}/valid{valid_period}
         /{data_type}
         """
-
-        file_path = self.get_file_path(
+        file_path = get_file_path(
             self.data_out,
             self.originating_centre,
             year,
@@ -538,7 +401,7 @@ class SeasonalForecast:
             created_files["processed_data"] = self._process(overwrite=overwrite)
         except Exception as error:
             # Catch reversed valid_period or any other ValueError from calculate_leadtimes
-            raise Exception(f"Download/process aborted: {error}") from error
+            raise RuntimeError(f"Download/process aborted: {error}") from error
 
         return created_files
 
@@ -635,11 +498,15 @@ class SeasonalForecast:
                     ] = outputs
 
                 except FileNotFoundError:
-                    LOGGER.warning(
-                        "File not found for %s-%s. Skipping...", year, month_str
+                    msg = (
+                        f"[Index Calculation] Skipped {self.index_metric} for "
+                        f"year={year}, month={month_str} — input file not found. "
+                        f"Expected: {input_data_path}"
                     )
+                    LOGGER.warning(msg)
+
                 except Exception as error:
-                    raise Exception(
+                    raise RuntimeError(
                         f"Error processing index {self.index_metric} for "
                         f"{year}-{month_str}: {error}"
                     ) from error
@@ -706,269 +573,23 @@ class SeasonalForecast:
                         index_data_path,
                         self.index_metric,
                     )
+
                 except FileNotFoundError:
-                    LOGGER.warning(
-                        "Monthly index file not found for %s-%s. Skipping...",
-                        year,
-                        month_str,
+                    msg = (
+                        f"[Hazard Conversion] Skipped {self.index_metric} for year={year}, "
+                        f"month={month_str} — monthly index file not found."
                     )
+                    LOGGER.warning(msg)
+
                 except Exception as error:
-                    raise Exception(
-                        f"Failed to create hazard for {year}-{month_str}: {error}"
+                    raise RuntimeError(
+                        f"Hazard creation failed for {year}-{month_str}: {error}"
                     ) from error
 
         return hazard_outputs
+    
 
-    def plot_forecast_skills(self):
-        """
-        Access and plot forecast skill data for the handler's parameters,
-        filtered by the selected area.
-        Raises
-        ------
-        ValueError
-            If the originating_centre is not "dwd".
-        ValueError
-            If the index_metric is not "Tmax".
-
-        Returns
-        -------
-        None
-            Generates plots for forecast skill metrics based on the handler's parameters
-            and the selected area.
-
-        """
-        # Check if the originating_centre is "dwd"
-        if self.originating_centre.lower() != "dwd":
-            raise ValueError(
-                "Forecast skill metrics are only available for the 'dwd' provider. "
-                f"Current provider: {self.originating_centre}"
-            )
-
-        # Check if the index_metric is "Tmax"
-        if self.index_metric.lower() != "tmax":
-            raise ValueError(
-                "Forecast skills are only available for the 'Tmax' index. "
-                f"Current index: {self.index_metric}"
-            )
-
-        # Define the file path pattern for forecast skill data (change for Zenodo when ready)
-        base_path = Path("/Users/daraya/Downloads")
-        file_name_pattern = (
-            "tasmaxMSESS_subyr_gcfs21_shc{month}-climatology_r1i1p1_1990-2019.nc"
-        )
-
-        # Iterate over initiation months and access the corresponding file
-        for month_str in self.initiation_month_str:
-
-            # Construct the file name and path
-            file_path = base_path / file_name_pattern.format(month=month_str)
-
-            if not file_path.exists():
-                LOGGER.warning(
-                    "Skill data file for month %s not found: %s",
-                    month_str,
-                    file_path,
-                )
-                continue
-
-            # Load the data using xarray
-            try:
-                with xr.open_dataset(file_path) as ds:
-                    # Subset the dataset by area bounds
-                    west, south, east, north = self.bounds
-                    subset_ds = ds.sel(lon=slice(west, east), lat=slice(north, south))
-
-                    # Plot each variable
-                    variables = [
-                        "tasmax_fc_mse",
-                        "tasmax_ref_mse",
-                        "tasmax_msess",
-                        "tasmax_msessSig",
-                    ]
-                    for var in variables:
-                        if var in subset_ds:
-                            plt.figure(figsize=(10, 8))
-                            ax = plt.axes(projection=ccrs.PlateCarree())
-
-                            # Adjust color scale to improve clarity
-                            vmin = subset_ds[var].quantile(0.05).item()
-                            vmax = subset_ds[var].quantile(0.95).item()
-
-                            plot_handle = (
-                                subset_ds[var]
-                                .isel(time=0)
-                                .plot(
-                                    ax=ax,
-                                    cmap="coolwarm",
-                                    vmin=vmin,
-                                    vmax=vmax,
-                                    add_colorbar=False,
-                                )
-                            )
-
-                            cbar = plt.colorbar(
-                                plot_handle, ax=ax, orientation="vertical", pad=0.1, shrink=0.7
-                            )
-                            cbar.set_label(var, fontsize=10)
-
-                            ax.set_extent(
-                                [west, east, south, north], crs=ccrs.PlateCarree()
-                            )
-                            ax.add_feature(cfeature.BORDERS, linestyle=":")
-                            ax.add_feature(cfeature.COASTLINE)
-                            ax.add_feature(cfeature.LAND, edgecolor="black", alpha=0.3)
-                            ax.gridlines(draw_labels=True, crs=ccrs.PlateCarree())
-
-                            plt.title(
-                                f"{var} for month {month_str},  {self.bounds_str}"
-                            )
-                            plt.show()
-                        else:
-                            LOGGER.warning(
-                                "Variable %s not found in dataset for month %s.",
-                                var,
-                                month_str,
-                            )
-            except Exception as error:
-                raise RuntimeError(
-                    f"Failed to load or process data for month {month_str}: {error}"
-                ) from error
-
-
-# ----- Utility Functions -----
-# Utility function for month name to number conversion (if not already defined)
-
-
-def month_name_to_number(month):
-    """
-    Convert a month name or number to its corresponding integer value.
-
-    Accepts either an integer (1-12), full month name (e.g., 'March'),
-    or abbreviated month name (e.g., 'Mar') and returns the corresponding
-    month number (1-12).
-
-    Parameters
-    ----------
-    month : int or str
-        Month as an integer (1-12) or as a string (full or abbreviated month name).
-
-    Returns
-    -------
-    int
-        Month as an integer in the range 1-12.
-
-    Raises
-    ------
-    ValueError
-        If the input month is invalid, empty, or outside the valid range.
-    """
-    if isinstance(month, int):  # Already a number
-        if 1 <= month <= 12:
-            return month
-        else:
-            raise ValueError("Month number must be between 1 and 12.")
-    if isinstance(month, str):
-        if not month.strip():
-            raise ValueError("Month cannot be empty.")  # e.g. "" or "   "
-        month = month.capitalize()  # Ensure consistent capitalization
-        if month in calendar.month_name:
-            return list(calendar.month_name).index(month)
-        elif month in calendar.month_abbr:
-            return list(calendar.month_abbr).index(month)
-    raise ValueError(f"Invalid month input: {month}")
-
-
-def calculate_leadtimes(year, initiation_month, valid_period):
-    """
-    Calculate lead times in hours for a forecast period based on initiation and valid months.
-
-    This function computes a list of lead times (in hours) for a seasonal forecast, starting
-    from the initiation month to the end of the valid period. The lead times are generated
-    in 6-hour steps, following the standard forecast output intervals.
-
-    Parameters
-    ----------
-    year : int
-        Year of the forecast initiation.
-    initiation_month : int or str
-        Initiation month of the forecast, as integer (1-12) or month name (e.g., 'March').
-    valid_period : list of int or str
-        List containing the start and end month of the valid period, either as integers (1-12)
-        or month names (e.g., ['June', 'August']). Must contain exactly two elements.
-
-    Returns
-    -------
-    list of int
-        List of lead times in hours, sorted and spaced by 6 hours.
-
-    Raises
-    ------
-    ValueError
-        If initiation month or valid period months are invalid or reversed.
-    Exception
-        For general errors during lead time calculation.
-
-    Notes
-    -----
-    - The valid period may extend into the following year if the valid months are after December.
-    - Lead times are calculated relative to the initiation date.
-    - Each lead time corresponds to a 6-hour forecast step.
-
-    Example:
-    ---------
-    If the forecast is initiated in **December 2022** and the valid period is **January 
-    to February 2023**,
-    the function will:
-    - Recognize that the forecast extends into the next year (2023).
-    - Compute lead times starting from **December 1, 2022** (0 hours) to **February 28, 2023**.
-    - Generate lead times in 6-hour intervals, covering the entire forecast period from 
-    December 2022 through February 2023.
-    """
-
-    # Convert initiation month to numeric if it is a string
-    if isinstance(initiation_month, str):
-        initiation_month = month_name_to_number(initiation_month)
-
-    # Convert valid_period to numeric
-    valid_period = [
-        month_name_to_number(month) if isinstance(month, str) else month
-        for month in valid_period
-    ]
-
-    # We expect valid_period = [start, end]
-    start_month, end_month = valid_period
-
-    # Immediately check for reversed period
-    if end_month < start_month:
-        raise ValueError(
-            "Reversed valid_period detected. The forecast cannot be called with "
-            f"an end month ({end_month}) that is before the start month ({start_month})."
-        )
-
-    # compute years of valid period
-    valid_years = np.array([year, year])
-    if initiation_month > valid_period[0]:  # forecast for next year
-        valid_years += np.array([1, 1])
-    if valid_period[1] < valid_period[0]:  # forecast including two different years
-        valid_years[1] += 1
-
-    # Reference starting date for initiation
-    initiation_date = date(year, initiation_month, 1)
-    valid_period_start = date(valid_years[0], valid_period[0], 1)
-    valid_period_end = date(
-        valid_years[1],
-        valid_period[1],
-        calendar.monthrange(valid_years[1], valid_period[1])[1],
-    )
-
-    return list(
-        range(
-            (valid_period_start - initiation_date).days * 24,
-            (valid_period_end - initiation_date).days * 24 + 24,
-            6,
-        )
-    )
-
+##########  Utility Functions  ##########
 
 def handle_overwriting(function):
     """
@@ -1019,8 +640,7 @@ def handle_overwriting(function):
     return wrapper
 
 
-# ----- Decorated Functions -----
-
+##########  Decorated Functions  ##########
 
 @handle_overwriting
 def _download_data(
@@ -1147,11 +767,11 @@ def _process_data(output_file_name, overwrite, input_file_name, variables, data_
         with xr.open_dataset(
             input_file_name,
             engine="cfgrib" if data_format == "grib" else None,
-        ) as ds:
+        ) as input_dataset:
             # Coarsen the data
-            ds_mean = ds.coarsen(step=4, boundary="trim").mean()
-            ds_max = ds.coarsen(step=4, boundary="trim").max()
-            ds_min = ds.coarsen(step=4, boundary="trim").min()
+            ds_mean = input_dataset.coarsen(step=4, boundary="trim").mean()
+            ds_max = input_dataset.coarsen(step=4, boundary="trim").max()
+            ds_min = input_dataset.coarsen(step=4, boundary="trim").min()
 
         # Create a new dataset combining mean, max, and min values
         combined_ds = xr.Dataset()
@@ -1171,7 +791,7 @@ def _process_data(output_file_name, overwrite, input_file_name, variables, data_
             f"Input file {input_file_name} does not exist. Processing failed."
         ) from error
     except Exception as error:
-        raise Exception(
+        raise RuntimeError(
             f"Error during processing for {input_file_name}: {error}"
         ) from error
 
@@ -1291,19 +911,19 @@ def _convert_to_hazard(output_file_name, overwrite, input_file_name, index_metri
         - '°C' for temperature indices
     """
     try:
-        with xr.open_dataset(str(input_file_name)) as ds:
-            if "step" not in ds.variables:
+        with xr.open_dataset(str(input_file_name)) as input_dataset:
+            if "step" not in input_dataset.variables:
                 raise KeyError(
                     f"Missing 'step' variable in dataset for {input_file_name}."
                 )
 
-            ds["step"] = xr.DataArray(
-                [f"{date}-01" for date in ds["step"].values],
+            input_dataset["step"] = xr.DataArray(
+                [f"{date}-01" for date in input_dataset["step"].values],
                 dims=["step"],
             )
-            ds["step"] = pd.to_datetime(ds["step"].values)
+            input_dataset["step"] = pd.to_datetime(input_dataset["step"].values)
 
-            ensemble_members = ds.get("number", [0]).values
+            ensemble_members = input_dataset.get("number", [0]).values
             hazards = []
 
             # Determine intensity unit and variable
@@ -1314,15 +934,15 @@ def _convert_to_hazard(output_file_name, overwrite, input_file_name, index_metri
             )
             intensity_variable = index_metric
 
-            if intensity_variable not in ds.variables:
+            if intensity_variable not in input_dataset.variables:
                 raise KeyError(
                     f"No variable named '{intensity_variable}' in the dataset. "
-                    f"Available variables: {list(ds.variables)}"
+                    f"Available variables: {list(input_dataset.variables)}"
                 )
 
             # Create Hazard objects
             for member in ensemble_members:
-                ds_subset = ds.sel(number=member) if "number" in ds.dims else ds
+                ds_subset = input_dataset.sel(number=member) if "number" in input_dataset.dims else input_dataset
                 hazard = Hazard.from_xarray_raster(
                     data=ds_subset,
                     hazard_type=index_metric,
@@ -1347,6 +967,6 @@ def _convert_to_hazard(output_file_name, overwrite, input_file_name, index_metri
         return output_file_name
 
     except Exception as error:
-        raise Exception(
-            f"Failed to convert {input_file_name} to hazard: {error}"
+        raise RuntimeError(
+            f"Hazard conversion failed for {input_file_name}: {error}"
         ) from error
